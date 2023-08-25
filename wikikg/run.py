@@ -293,7 +293,7 @@ def main(args):
         train_dataloader_head = DataLoader(
             TrainDataset(train_triples, nentity, nrelation,
                 args.negative_sample_size, 'head-batch',
-                train_count, train_true_head, train_true_tail),
+                train_count, train_true_head, train_true_tail, dataset.graph['edge_reltype']),
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=max(1, args.cpu_num//2),
@@ -303,7 +303,7 @@ def main(args):
         train_dataloader_tail = DataLoader(
             TrainDataset(train_triples, nentity, nrelation,
                 args.negative_sample_size, 'tail-batch',
-                train_count, train_true_head, train_true_tail),
+                train_count, train_true_head, train_true_tail, dataset.graph['edge_reltype']),
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=max(1, args.cpu_num//2),
