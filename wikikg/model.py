@@ -66,6 +66,20 @@ class KGEModel(nn.Module):
                 b=self.embedding_range.item()
             )
 
+        if model_name in ['STransE']:
+            self.W1 = nn.Parameter(torch.zeros(nrelation, self.hidden_dim, self.hidden_dim))
+            self.W2 = nn.Parameter(torch.zeros(nrelation, self.hidden_dim, self.hidden_dim))
+            nn.init.uniform_(
+                tensor=self.W1,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item()
+            )
+            nn.init.uniform_(
+                tensor=self.W2,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item()
+            )
+
         #Do not forget to modify this line when you add a new model in the "forward" function
         if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2']:
             raise ValueError('model %s not supported' % model_name)
@@ -162,6 +176,7 @@ class KGEModel(nn.Module):
 
         model_func = {
             'TransE': self.TransE,
+            'STransE': self.STransE,
             'DistMult': self.DistMult,
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
@@ -169,6 +184,7 @@ class KGEModel(nn.Module):
             'TransH': self.TransH,
             'RotatEv2': self.RotatEv2,
         }
+
 
         if self.model_name in model_func:
             score = model_func[self.model_name](head, relation, tail, mode)
@@ -178,6 +194,15 @@ class KGEModel(nn.Module):
         return score
 
     def TransE(self, head, relation, tail, mode):
+        if mode == 'head-batch':
+            score = head + (relation - tail)
+        else:
+            score = (head + relation) - tail
+
+        score = self.gamma.item() - torch.norm(score, p=1, dim=2)
+        return score
+
+    def STransE(self, head, relation, tail, mode):
         if mode == 'head-batch':
             score = head + (relation - tail)
         else:
