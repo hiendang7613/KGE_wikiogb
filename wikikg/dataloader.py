@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import Dataset
 
 class TrainDataset(Dataset):
-    def __init__(self, triples, nentity, nrelation, negative_sample_size, mode, count, true_head, true_tail):
+    def __init__(self, triples, nentity, nrelation, negative_sample_size, mode, count, true_head, true_tail, edge_reltype):
         self.len = len(triples['head'])
         self.triples = triples
         self.nentity = nentity
@@ -20,6 +20,7 @@ class TrainDataset(Dataset):
         self.count = count
         self.true_head = true_head
         self.true_tail = true_tail
+        self.edge_reltype = edge_reltype
         
     def __len__(self):
         return self.len
@@ -27,6 +28,8 @@ class TrainDataset(Dataset):
     def __getitem__(self, idx):
         head, relation, tail = self.triples['head'][idx], self.triples['relation'][idx], self.triples['tail'][idx]
         positive_sample = [head, relation, tail]
+        edge_reltype = self.edge_reltype[idx]
+        edge_reltype = torch.LongTensor(edge_reltype)
 
         subsampling_weight = self.count[(head, relation)] + self.count[(tail, -relation-1)]
         subsampling_weight = torch.sqrt(1 / torch.Tensor([subsampling_weight]))
@@ -64,15 +67,17 @@ class TrainDataset(Dataset):
         negative_sample = torch.randint(0, self.nentity, (self.negative_sample_size,))
         positive_sample = torch.LongTensor(positive_sample)
             
-        return positive_sample, negative_sample, subsampling_weight, self.mode
+        return positive_sample, negative_sample, subsampling_weight, edge_reltype, self.mode
     
     @staticmethod
     def collate_fn(data):
+        print(data[0])
         positive_sample = torch.stack([_[0] for _ in data], dim=0)
         negative_sample = torch.stack([_[1] for _ in data], dim=0)
         subsample_weight = torch.cat([_[2] for _ in data], dim=0)
-        mode = data[0][3]
-        return positive_sample, negative_sample, subsample_weight, mode
+        edge_reltype = torch.stack([_[3] for _ in data], dim=0)
+        mode = data[0][4]
+        return positive_sample, negative_sample, subsample_weight, edge_reltype, mode
     
 class TestDataset(Dataset):
     def __init__(self, triples, args, mode, random_sampling):
