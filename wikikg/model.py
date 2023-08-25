@@ -81,7 +81,7 @@ class KGEModel(nn.Module):
             )
 
         #Do not forget to modify this line when you add a new model in the "forward" function
-        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2']:
+        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE']:
             raise ValueError('model %s not supported' % model_name)
 
         if model_name == 'RotatE' and (not double_entity_embedding or double_relation_embedding):
@@ -128,7 +128,7 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
         elif mode == 'head-batch':
-            tail_part, head_part = sample
+            tail_part, head_part, edge_reltype = sample
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
 
             head = torch.index_select(
@@ -150,7 +150,7 @@ class KGEModel(nn.Module):
             ).unsqueeze(1)
 
         elif mode == 'tail-batch':
-            head_part, tail_part = sample
+            head_part, tail_part, edge_reltype = sample
             batch_size, negative_sample_size = tail_part.size(0), tail_part.size(1)
 
             head = torch.index_select(
@@ -187,13 +187,13 @@ class KGEModel(nn.Module):
 
 
         if self.model_name in model_func:
-            score = model_func[self.model_name](head, relation, tail, mode)
+            score = model_func[self.model_name](head, relation, tail, mode, edge_reltype)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
         return score
 
-    def TransE(self, head, relation, tail, mode):
+    def TransE(self, head, relation, tail, mode, edge_reltype):
         if mode == 'head-batch':
             score = head + (relation - tail)
         else:
@@ -202,16 +202,16 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def STransE(self, head, relation, tail, mode):
+    def STransE(self, head, relation, tail, mode, edge_reltype):
         if mode == 'head-batch':
-            score = head + (relation - tail)
+            score = torch.matmul(head, self.W1[edge_reltype]) + (relation - torch.matmul(tail, self.W2[edge_reltype]))
         else:
-            score = (head + relation) - tail
+            score = (torch.matmul(head, self.W1[edge_reltype]) + relation) - torch.matmul(tail, self.W2[edge_reltype])
 
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def DistMult(self, head, relation, tail, mode):
+    def DistMult(self, head, relation, tail, mode, edge_reltype):
         if mode == 'head-batch':
             score = head * (relation * tail)
         else:
@@ -220,7 +220,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim = 2)
         return score
 
-    def ComplEx(self, head, relation, tail, mode):
+    def ComplEx(self, head, relation, tail, mode, edge_reltype):
         re_head, im_head = torch.chunk(head, 2, dim=2)
         re_relation, im_relation = torch.chunk(relation, 2, dim=2)
         re_tail, im_tail = torch.chunk(tail, 2, dim=2)
@@ -237,7 +237,7 @@ class KGEModel(nn.Module):
         score = score.sum(dim = 2)
         return score
 
-    def RotatE(self, head, relation, tail, mode):
+    def RotatE(self, head, relation, tail, mode, edge_reltype):
         pi = 3.14159265358979323846
 
         re_head, im_head = torch.chunk(head, 2, dim=2)
@@ -297,7 +297,7 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - score.sum(dim = 2)
         return score
 
-    def PairRE(self, head, relation, tail, mode):
+    def PairRE(self, head, relation, tail, mode, edge_reltype):
         re_head, re_tail = torch.chunk(relation, 2, dim=2)
 
         head = F.normalize(head, 2, -1)
@@ -307,7 +307,7 @@ class KGEModel(nn.Module):
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
-    def TransH(self, head, relation, tail, mode):
+    def TransH(self, head, relation, tail, mode, edge_reltype):
         def _transfer(e, norm):
             norm = F.normalize(norm, p = 2, dim = -1)
             if e.shape[0] != norm.shape[0]:
@@ -348,14 +348,18 @@ class KGEModel(nn.Module):
 
         model.train()
         optimizer.zero_grad()
-        positive_sample, negative_sample, subsampling_weight, mode = next(train_iterator)
-
+        positive_sample, negative_sample, subsampling_weight, edge_reltype, mode = next(train_iterator)
+        print(positive_sample.shape)
+        print(negative_sample.shape)
+        print(subsampling_weight.shape)
+        print(edge_reltype.shape)
+        print(mode)
         if args.cuda:
             positive_sample = positive_sample.cuda()
             negative_sample = negative_sample.cuda()
             subsampling_weight = subsampling_weight.cuda()
 
-        negative_score = model((positive_sample, negative_sample), mode=mode)
+        negative_score = model((positive_sample, negative_sample, edge_reltype), mode=mode)
         if args.negative_adversarial_sampling:
             #In self-adversarial sampling, we do not apply back-propagation on the sampling weight
             negative_score = (F.softmax(negative_score * args.adversarial_temperature, dim = 1).detach()
@@ -363,7 +367,7 @@ class KGEModel(nn.Module):
         else:
             negative_score = F.logsigmoid(-negative_score).mean(dim = 1)
 
-        positive_score = model(positive_sample)
+        positive_score = model((positive_sample, edge_reltype))
         positive_score = F.logsigmoid(positive_score).squeeze(dim = 1)
 
         if args.uni_weight:
