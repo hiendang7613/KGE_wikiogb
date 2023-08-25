@@ -155,7 +155,7 @@ def log_metrics(mode, step, metrics, writer):
     Print the evaluation logs
     '''
     for metric in metrics:
-        logging.info('%s %s at step %d: %f' % (mode, metric, step, metrics[metric]))
+        print('%s %s at step %d: %f' % (mode, metric, step, metrics[metric]))
         writer.add_scalar("_".join([mode, metric]), metrics[metric], step)
 
 
@@ -183,18 +183,18 @@ def main(args):
     args.nentity = nentity
     args.nrelation = nrelation
 
-    logging.info('Model: %s' % args.model)
-    logging.info('Dataset: %s' % args.dataset)
-    logging.info('#entity: %d' % nentity)
-    logging.info('#relation: %d' % nrelation)
+    print('Model: %s' % args.model)
+    print('Dataset: %s' % args.dataset)
+    print('#entity: %d' % nentity)
+    print('#relation: %d' % nrelation)
 
     train_triples = split_dict['train']
-    logging.info('#train: %d' % len(train_triples['head']))
+    print('#train: %d' % len(train_triples['head']))
     valid_triples = split_dict['valid']
-    logging.info('#valid: %d' % len(valid_triples['head']))
+    print('#valid: %d' % len(valid_triples['head']))
     test_triples = split_dict['test']
-    logging.info('#test: %d' % len(test_triples['head']))
-    logging.info('relation type %s' % args.relation_type)
+    print('#test: %d' % len(test_triples['head']))
+    print('relation type %s' % args.relation_type)
     print('relation type %s' % args.relation_type)
     test_set_file = ''
     if args.relation_type == '1-1':
@@ -241,7 +241,7 @@ def main(args):
             torch.save(test_triples_new, test_set_pre_processed, pickle_protocol=4)
 
             test_triples = test_triples_new
-            logging.info('#test: %d' % len(test_triples['head']))
+            print('#test: %d' % len(test_triples['head']))
 
 
     train_count, train_true_head, train_true_tail = defaultdict(lambda: 4), defaultdict(list), defaultdict(list)
@@ -281,9 +281,9 @@ def main(args):
         evaluator=evaluator
     )
 
-    logging.info('Model Parameter Configuration:')
+    print('Model Parameter Configuration:')
     for name, param in kge_model.named_parameters():
-        logging.info('Parameter %s: %s, require_grad = %s' % (name, str(param.size()), str(param.requires_grad)))
+        print('Parameter %s: %s, require_grad = %s' % (name, str(param.size()), str(param.requires_grad)))
 
     if args.cuda:
         kge_model = kge_model.cuda()
@@ -325,7 +325,7 @@ def main(args):
 
     if args.init_checkpoint:
         # Restore model from checkpoint directory
-        logging.info('Loading checkpoint %s...' % args.init_checkpoint)
+        print('Loading checkpoint %s...' % args.init_checkpoint)
         checkpoint = torch.load(os.path.join(args.init_checkpoint, 'checkpoint'))
         init_step = checkpoint['step']
         kge_model.load_state_dict(checkpoint['model_state_dict'])
@@ -334,25 +334,25 @@ def main(args):
             warm_up_steps = checkpoint['warm_up_steps']
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
-        logging.info('Ramdomly Initializing %s Model...' % args.model)
+        print('Ramdomly Initializing %s Model...' % args.model)
         init_step = 0
 
     step = init_step
 
-    logging.info('Start Training...')
-    logging.info('init_step = %d' % init_step)
-    logging.info('batch_size = %d' % args.batch_size)
-    logging.info('negative_adversarial_sampling = %d' % args.negative_adversarial_sampling)
-    logging.info('hidden_dim = %d' % args.hidden_dim)
-    logging.info('gamma = %f' % args.gamma)
-    logging.info('negative_adversarial_sampling = %s' % str(args.negative_adversarial_sampling))
+    print('Start Training...')
+    print('init_step = %d' % init_step)
+    print('batch_size = %d' % args.batch_size)
+    print('negative_adversarial_sampling = %d' % args.negative_adversarial_sampling)
+    print('hidden_dim = %d' % args.hidden_dim)
+    print('gamma = %f' % args.gamma)
+    print('negative_adversarial_sampling = %s' % str(args.negative_adversarial_sampling))
     if args.negative_adversarial_sampling:
-        logging.info('adversarial_temperature = %f' % args.adversarial_temperature)
+        print('adversarial_temperature = %f' % args.adversarial_temperature)
 
     # Set valid dataloader as it would be evaluated during training
 
     if args.do_train:
-        logging.info('learning_rate = %d' % current_learning_rate)
+        print('learning_rate = %d' % current_learning_rate)
 
         training_logs = []
 
@@ -364,7 +364,7 @@ def main(args):
 
             if step >= warm_up_steps:
                 current_learning_rate = current_learning_rate / 10
-                logging.info('Change learning_rate to %f at step %d' % (current_learning_rate, step))
+                print('Change learning_rate to %f at step %d' % (current_learning_rate, step))
                 optimizer = torch.optim.Adam(
                     filter(lambda p: p.requires_grad, kge_model.parameters()),
                     lr=current_learning_rate
@@ -387,7 +387,7 @@ def main(args):
                 training_logs = []
 
             if args.do_valid and step % args.valid_steps == 0 and step > 0:
-                logging.info('Evaluating on Valid Dataset...')
+                print('Evaluating on Valid Dataset...')
                 metrics = kge_model.test_step(kge_model, valid_triples, args)
                 log_metrics('Valid', step, metrics, writer)
 
@@ -399,17 +399,17 @@ def main(args):
         save_model(kge_model, optimizer, save_variable_list, args)
 
     if args.do_valid:
-        logging.info('Evaluating on Valid Dataset...')
+        print('Evaluating on Valid Dataset...')
         metrics = kge_model.test_step(kge_model, valid_triples, args)
         log_metrics('Valid', step, metrics, writer)
 
     if args.do_test:
-        logging.info('Evaluating on Test Dataset...')
+        print('Evaluating on Test Dataset...')
         metrics = kge_model.test_step(kge_model, test_triples, args)
         log_metrics('Test', step, metrics, writer)
         print(metrics)
     if args.evaluate_train:
-        logging.info('Evaluating on Training Dataset...')
+        print('Evaluating on Training Dataset...')
         small_train_triples = {}
         indices = np.random.choice(len(train_triples['head']), args.ntriples_eval_train, replace=False)
         for i in train_triples:
