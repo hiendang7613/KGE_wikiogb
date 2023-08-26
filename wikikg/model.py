@@ -107,6 +107,7 @@ class KGEModel(nn.Module):
         '''
 
         if mode == 'single':
+            sample, edge_reltype = sample
             batch_size, negative_sample_size = sample.size(0), 1
 
             head = torch.index_select(
