@@ -104,14 +104,13 @@ def save_model(model, optimizer, save_variable_list, args):
     with open(os.path.join(args.save_path, 'config.json'), 'w') as fjson:
         json.dump(argparse_dict, fjson)
 
-    """
     torch.save({
         **save_variable_list,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict()},
         os.path.join(args.save_path, 'checkpoint')
     )
-    """
+
     entity_embedding = model.entity_embedding.detach().cpu().numpy()
     np.save(
         os.path.join(args.save_path, 'entity_embedding'),
@@ -388,7 +387,7 @@ def main(args):
 
             if args.do_valid and step % args.valid_steps == 0 and step > 0:
                 print('Evaluating on Valid Dataset...')
-                metrics = kge_model.test_step(kge_model, valid_triples, args)
+                metrics = kge_model.test_step(kge_model, valid_triples, args, edge_reltype=dataset.graph['edge_reltype'])
                 log_metrics('Valid', step, metrics, writer)
 
         save_variable_list = {
