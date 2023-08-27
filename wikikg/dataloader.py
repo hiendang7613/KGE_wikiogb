@@ -71,7 +71,6 @@ class TrainDataset(Dataset):
     
     @staticmethod
     def collate_fn(data):
-        print(data[0])
         positive_sample = torch.stack([_[0] for _ in data], dim=0)
         negative_sample = torch.stack([_[1] for _ in data], dim=0)
         subsample_weight = torch.cat([_[2] for _ in data], dim=0)
@@ -80,7 +79,7 @@ class TrainDataset(Dataset):
         return positive_sample, negative_sample, subsample_weight, edge_reltype, mode
     
 class TestDataset(Dataset):
-    def __init__(self, triples, args, mode, random_sampling):
+    def __init__(self, triples, args, mode, random_sampling, edge_reltype):
         self.len = len(triples['head'])
         self.triples = triples
         self.nentity = args.nentity
@@ -89,6 +88,7 @@ class TestDataset(Dataset):
         self.random_sampling = random_sampling
         if random_sampling:
             self.neg_size = args.neg_size_eval_train
+        self.edge_reltype = edge_reltype
 
     def __len__(self):
         return self.len
@@ -96,7 +96,8 @@ class TestDataset(Dataset):
     def __getitem__(self, idx):
         head, relation, tail = self.triples['head'][idx], self.triples['relation'][idx], self.triples['tail'][idx]
         positive_sample = torch.LongTensor((head, relation, tail))
-
+        edge_reltype = self.edge_reltype[idx]
+        edge_reltype = torch.LongTensor(edge_reltype)
         if self.mode == 'head-batch':
             if not self.random_sampling:
                 negative_sample = torch.cat([torch.LongTensor([head]), torch.from_numpy(self.triples['head_neg'][idx])])
@@ -108,15 +109,15 @@ class TestDataset(Dataset):
             else:
                 negative_sample = torch.cat([torch.LongTensor([tail]), torch.randint(0, self.nentity, size=(self.neg_size,))])
 
-        return positive_sample, negative_sample, self.mode
+        return positive_sample, negative_sample, edge_reltype, self.mode
     
     @staticmethod
     def collate_fn(data):
         positive_sample = torch.stack([_[0] for _ in data], dim=0)
         negative_sample = torch.stack([_[1] for _ in data], dim=0)
-        mode = data[0][2]
-
-        return positive_sample, negative_sample, mode
+        edge_reltype = torch.stack([_[2] for _ in data], dim=0)
+        mode = data[0][3]
+        return positive_sample, negative_sample, edge_reltype, mode
     
 class BidirectionalOneShotIterator(object):
     def __init__(self, dataloader_head, dataloader_tail):
