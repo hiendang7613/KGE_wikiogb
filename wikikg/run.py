@@ -399,12 +399,12 @@ def main(args):
 
     if args.do_valid:
         print('Evaluating on Valid Dataset...')
-        metrics = kge_model.test_step(kge_model, valid_triples, args)
+        metrics = kge_model.test_step(kge_model, valid_triples, args, edge_reltype=dataset.graph['edge_reltype'])
         log_metrics('Valid', step, metrics, writer)
 
     if args.do_test:
         print('Evaluating on Test Dataset...')
-        metrics = kge_model.test_step(kge_model, test_triples, args)
+        metrics = kge_model.test_step(kge_model, test_triples, args, edge_reltype=dataset.graph['edge_reltype'])
         log_metrics('Test', step, metrics, writer)
         print(metrics)
     if args.evaluate_train:
