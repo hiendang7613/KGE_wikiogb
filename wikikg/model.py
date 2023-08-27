@@ -351,11 +351,6 @@ class KGEModel(nn.Module):
         model.train()
         optimizer.zero_grad()
         positive_sample, negative_sample, subsampling_weight, edge_reltype, mode = next(train_iterator)
-        print(positive_sample.shape)
-        print(negative_sample.shape)
-        print(subsampling_weight.shape)
-        print(edge_reltype.shape)
-        print(mode)
         if args.cuda:
             positive_sample = positive_sample.cuda()
             negative_sample = negative_sample.cuda()
@@ -371,8 +366,6 @@ class KGEModel(nn.Module):
 
         positive_score = model((positive_sample, edge_reltype))
         positive_score = F.logsigmoid(positive_score).squeeze(dim = 1)
-        print(positive_score.shape)
-        print(subsampling_weight.shape)
 
         if args.uni_weight:
             positive_sample_loss = - positive_score.mean()
