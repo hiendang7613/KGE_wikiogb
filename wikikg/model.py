@@ -446,7 +446,7 @@ class KGEModel(nn.Module):
             t1 = datetime.datetime.now().microsecond
             t3 = time.mktime(datetime.datetime.now().timetuple())
             for test_dataset in test_dataset_list:
-                for positive_sample, negative_sample, mode in test_dataset:
+                for positive_sample, negative_sample, edge_reltype, mode in test_dataset:
                     if args.cuda:
                         positive_sample = positive_sample.cuda()
                         negative_sample = negative_sample.cuda()
