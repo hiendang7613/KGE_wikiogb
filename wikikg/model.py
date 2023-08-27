@@ -452,7 +452,7 @@ class KGEModel(nn.Module):
                         negative_sample = negative_sample.cuda()
 
                     batch_size = positive_sample.size(0)
-                    score = model((positive_sample, negative_sample), mode)
+                    score = model((positive_sample, negative_sample, edge_reltype), mode)
 
                     batch_results = model.evaluator.eval({'y_pred_pos': score[:, 0],
                                                 'y_pred_neg': score[:, 1:]})
