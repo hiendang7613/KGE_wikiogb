@@ -89,7 +89,7 @@ class KGEModel(nn.Module):
             )
 
         #Do not forget to modify this line when you add a new model in the "forward" function
-        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE']:
+        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE', 'RotateCT']:
             raise ValueError('model %s not supported' % model_name)
 
         if model_name == 'RotatE' and (not double_entity_embedding or double_relation_embedding):
