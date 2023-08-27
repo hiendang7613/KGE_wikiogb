@@ -356,7 +356,7 @@ def main(args):
         training_logs = []
 
         #Training Loop
-        for step in range(init_step, args.max_steps):
+        for step in tqdm(range(init_step, args.max_steps)):
 
             log = kge_model.train_step(kge_model, optimizer, train_iterator, args)
             training_logs.append(log)
