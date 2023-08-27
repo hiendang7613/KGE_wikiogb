@@ -80,6 +80,14 @@ class KGEModel(nn.Module):
                 b=self.embedding_range.item()
             )
 
+        if model_name in ['RotateCT']:
+            self.b = nn.Parameter(torch.zeros(nrelation, self.hidden_dim))
+            nn.init.uniform_(
+                tensor=self.b,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item()
+            )
+
         #Do not forget to modify this line when you add a new model in the "forward" function
         if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE']:
             raise ValueError('model %s not supported' % model_name)
@@ -260,6 +268,41 @@ class KGEModel(nn.Module):
         else:
             re_score = re_head * re_relation - im_head * im_relation
             im_score = re_head * im_relation + im_head * re_relation
+            re_score = re_score - re_tail
+            im_score = im_score - im_tail
+
+        score = torch.stack([re_score, im_score], dim = 0)
+        score = score.norm(dim = 0)
+
+        score = self.gamma.item() - score.sum(dim = 2)
+        return score
+
+    def RotateCT(self, head, relation, tail, mode, edge_reltype):
+        pi = 3.14159265358979323846
+        edge_reltype = edge_reltype.squeeze(1)
+
+        re_head, im_head = torch.chunk(head, 2, dim=2)
+        re_tail, im_tail = torch.chunk(tail, 2, dim=2)
+
+        #Make phases of relations uniformly distributed in [-pi, pi]
+
+        phase_relation = relation/(self.embedding_range.item()/pi)
+        phase_b = self.b[edge_reltype]/(self.embedding_range.item()/pi)
+
+        re_relation = torch.cos(phase_relation)
+        im_relation = torch.sin(phase_relation)
+
+        re_b = torch.cos(phase_b)
+        im_b = torch.sin(phase_b)
+
+        if mode == 'head-batch':
+            re_score = re_relation * (re_tail-re_b) + im_relation * (im_tail-im_b)
+            im_score = re_relation * (im_tail-im_b) - im_relation * (re_tail-re_b)
+            re_score = re_score - re_head
+            im_score = im_score - im_head
+        else:
+            re_score = (re_head-re_b) * re_relation - (im_head-im_b) * im_relation
+            im_score = (re_head-re_b) * im_relation + (im_head-im_b) * re_relation
             re_score = re_score - re_tail
             im_score = im_score - im_tail
 
