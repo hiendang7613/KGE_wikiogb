@@ -192,6 +192,7 @@ class KGEModel(nn.Module):
             'PairRE': self.PairRE,
             'TransH': self.TransH,
             'RotatEv2': self.RotatEv2,
+            'RotateCT': self.RotateCT,
         }
 
 
