@@ -204,10 +204,11 @@ class KGEModel(nn.Module):
         return score
 
     def STransE(self, head, relation, tail, mode, edge_reltype):
+        edge_reltype = edge_reltype.squeeze(1)
         if mode == 'head-batch':
-            score = torch.matmul(head, self.W1[edge_reltype]) + (relation - torch.matmul(tail, self.W2[edge_reltype]))
+            score = torch.bmm(head, self.W1[edge_reltype]) + (relation - torch.bmm(tail, self.W2[edge_reltype]))
         else:
-            score = (torch.matmul(head, self.W1[edge_reltype]) + relation) - torch.matmul(tail, self.W2[edge_reltype])
+            score = (torch.bmm(head, self.W1[edge_reltype]) + relation) - torch.bmm(tail, self.W2[edge_reltype])
 
         score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
@@ -370,6 +371,8 @@ class KGEModel(nn.Module):
 
         positive_score = model((positive_sample, edge_reltype))
         positive_score = F.logsigmoid(positive_score).squeeze(dim = 1)
+        print(positive_score.shape)
+        print(subsampling_weight.shape)
 
         if args.uni_weight:
             positive_sample_loss = - positive_score.mean()
