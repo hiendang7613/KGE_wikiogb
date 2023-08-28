@@ -266,14 +266,19 @@ class KGEModel(nn.Module):
 
         return score
 
-    def transfer(self, e, e_transfer, r_transfer):
-        return e + self.reduce(e * e_transfer, -1) * r_transfer
+    def l2norm_op(x):
+        ones_for_sum = tensor_constant(1, (x.shape[1], x.shape[1]))
+        eps = tensor_constant(1e-12, x.shape)
+        return x * ops.Rsqrt()(ops.matmul(ops.square(x), ones_for_sum) + eps)
     
     def TransD(head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
         head = head + self.reduce(head * head_p, -1) * relation_p
         tail = tail + self.reduce(tail * tail_p, -1) * relation_p
 
-        head, relation, tail = self.normalize_embeddings(head, relation, tail)
+        head = l2norm_op(head)
+        relation = l2norm_op(relation)
+        tail = l2norm_op(tail)
+        
         if mode == 'head-batch':
             score = head + (relation - tail)
         else:
