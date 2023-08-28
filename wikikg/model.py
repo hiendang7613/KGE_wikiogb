@@ -259,13 +259,14 @@ class KGEModel(nn.Module):
             raise ValueError('model %s not supported' % self.model_name)
 
         return score
-
+        
+    @staticmethod
     def l2norm_op(x):
         ones_for_sum = tensor_constant(1, (x.shape[1], x.shape[1]))
         eps = tensor_constant(1e-12, x.shape)
         return x * ops.Rsqrt()(ops.matmul(ops.square(x), ones_for_sum) + eps)
     
-    def TransD(head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
+    def TransD(self, head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
         head = head + torch.sum(head * head_p, -1, keepdim=True) * relation_p
         tail = tail + torch.sum(tail * tail_p, -1, keepdim=True) * relation_p
 
