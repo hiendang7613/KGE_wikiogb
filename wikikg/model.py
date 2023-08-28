@@ -88,6 +88,26 @@ class KGEModel(nn.Module):
                 b=self.embedding_range.item()
             )
 
+        if model_name in ['TransD']:
+            self.ent_transfer = nn.Embedding(self.ent_tot, self.dim_e, embedding_table=XavierUniform())
+            self.rel_transfer = nn.Embedding(self.rel_tot, self.dim_r, embedding_table=XavierUniform())
+            self.entity_p_embedding = nn.Parameter(torch.zeros(nentity, self.entity_dim))
+            nn.init.uniform_(
+                tensor=self.entity_p_embedding,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item()
+            )
+            self.relation_p_embedding = nn.Parameter(torch.zeros(nrelation, self.relation_dim))
+            nn.init.uniform_(
+                tensor=self.relation_p_embedding,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item()
+            )
+            self.reduce = ops.ReduceSum(keep_dims=True)
+
+            
+
+
         #Do not forget to modify this line when you add a new model in the "forward" function
         if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE', 'RotateCT']:
             raise ValueError('model %s not supported' % model_name)
@@ -140,6 +160,7 @@ class KGEModel(nn.Module):
             tail_part, head_part, edge_reltype = sample
             batch_size, negative_sample_size = head_part.size(0), head_part.size(1)
 
+
             head = torch.index_select(
                 self.entity_embedding,
                 dim=0,
@@ -157,6 +178,25 @@ class KGEModel(nn.Module):
                 dim=0,
                 index=tail_part[:, 2]
             ).unsqueeze(1)
+            
+            if self.model_name == 'TransD':
+                head_p = torch.index_select(
+                    self.entity_p_embedding,
+                    dim=0,
+                    index=head_part.view(-1)
+                ).view(batch_size, negative_sample_size, -1)
+    
+                relation_p = torch.index_select(
+                    self.relation_p_embedding,
+                    dim=0,
+                    index=tail_part[:, 1]
+                ).unsqueeze(1)
+    
+                tail_p = torch.index_select(
+                    self.entity_p_embedding,
+                    dim=0,
+                    index=tail_part[:, 2]
+                ).unsqueeze(1)
 
         elif mode == 'tail-batch':
             head_part, tail_part, edge_reltype = sample
@@ -179,13 +219,33 @@ class KGEModel(nn.Module):
                 dim=0,
                 index=tail_part.view(-1)
             ).view(batch_size, negative_sample_size, -1)
+            
+            if self.model_name == 'TransD':
+                head_p = torch.index_select(
+                    self.entity_p_embedding,
+                    dim=0,
+                    index=head_part[:, 0]
+                ).unsqueeze(1)
+    
+                relation_p = torch.index_select(
+                    self.relation_p_embedding,
+                    dim=0,
+                    index=head_part[:, 1]
+                ).unsqueeze(1)
+    
+                tail_p = torch.index_select(
+                    self.entity_p_embedding,
+                    dim=0,
+                    index=tail_part.view(-1)
+                ).view(batch_size, negative_sample_size, -1)
 
         else:
             raise ValueError('mode %s not supported' % mode)
-
+            
         model_func = {
             'TransE': self.TransE,
             'STransE': self.STransE,
+            'TransD': self.TransD,
             'DistMult': self.DistMult,
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
@@ -197,10 +257,28 @@ class KGEModel(nn.Module):
 
 
         if self.model_name in model_func:
-            score = model_func[self.model_name](head, relation, tail, mode, edge_reltype)
+            if self.model_name == 'TransD':
+                score = model_func['TransD'](head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype)
+            else:
+                score = model_func[self.model_name](head, relation, tail, mode, edge_reltype)
         else:
             raise ValueError('model %s not supported' % self.model_name)
 
+        return score
+
+    def transfer(self, e, e_transfer, r_transfer):
+        return e + self.reduce(e * e_transfer, -1) * r_transfer
+    
+    def TransD(head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
+        head = head + self.reduce(head * head_p, -1) * relation_p
+        tail = tail + self.reduce(tail * tail_p, -1) * relation_p
+
+        head, relation, tail = self.normalize_embeddings(head, relation, tail)
+        if mode == 'head-batch':
+            score = head + (relation - tail)
+        else:
+            score = (head + relation) - tail
+        score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
     def TransE(self, head, relation, tail, mode, edge_reltype):
@@ -280,7 +358,7 @@ class KGEModel(nn.Module):
 
     def RotateCT(self, head, relation, tail, mode, edge_reltype):
         pi = 3.14159265358979323846
-        edge_reltype = edge_reltype.squeeze(1)
+        # edge_reltype = edge_reltype.squeeze(1)
 
         re_head, im_head = torch.chunk(head, 2, dim=2)
         re_tail, im_tail = torch.chunk(tail, 2, dim=2)
