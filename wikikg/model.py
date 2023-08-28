@@ -101,10 +101,6 @@ class KGEModel(nn.Module):
                 a=-self.embedding_range.item(),
                 b=self.embedding_range.item()
             )
-            self.reduce = ops.ReduceSum(keep_dims=True)
-
-            
-
 
         #Do not forget to modify this line when you add a new model in the "forward" function
         if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'PairRE', 'TransH', 'RotatEv2', 'STransE', 'RotateCT','TransD']:
@@ -270,8 +266,8 @@ class KGEModel(nn.Module):
         return x * ops.Rsqrt()(ops.matmul(ops.square(x), ones_for_sum) + eps)
     
     def TransD(head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
-        head = head + self.reduce(head * head_p, -1) * relation_p
-        tail = tail + self.reduce(tail * tail_p, -1) * relation_p
+        head = head + torch.sum(head * head_p, -1, keepdim=True) * relation_p
+        tail = tail + torch.sum(tail * tail_p, -1, keepdim=True) * relation_p
 
         head = l2norm_op(head)
         relation = l2norm_op(relation)
