@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -267,7 +265,7 @@ class KGEModel(nn.Module):
 
     @staticmethod
     def l2norm_op(x):
-        ones_for_sum = tensor_constant(1, (x.shape[1], x.shape[1]))
+        ones_for_sum = tensor_constant(1, (x.shape[2], x.shape[2]))
         eps = tensor_constant(1e-12, x.shape)
         return x * torch.rsqrt(torch.matmul(torch.square(x), ones_for_sum) + eps)
     
