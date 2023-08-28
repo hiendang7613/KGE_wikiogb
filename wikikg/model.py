@@ -21,6 +21,11 @@ from collections import defaultdict
 
 from ogb.linkproppred import Evaluator
 
+def tensor_constant(value, shape):
+    """Create a tensor constant of the specified shape"""
+    constant = np.ones(shape, np.float32) * value
+    return torch.Tensor(constant, torch.float32)
+
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, evaluator,
                  double_entity_embedding=False, double_relation_embedding=False):
@@ -259,20 +264,20 @@ class KGEModel(nn.Module):
             raise ValueError('model %s not supported' % self.model_name)
 
         return score
-        
+
     @staticmethod
     def l2norm_op(x):
         ones_for_sum = tensor_constant(1, (x.shape[1], x.shape[1]))
         eps = tensor_constant(1e-12, x.shape)
-        return x * ops.Rsqrt()(ops.matmul(ops.square(x), ones_for_sum) + eps)
+        return x * torch.rsqrt(torch.matmul(torch.square(x), ones_for_sum) + eps)
     
     def TransD(self, head, relation, tail, head_p, relation_p, tail_p, mode, edge_reltype):
         head = head + torch.sum(head * head_p, -1, keepdim=True) * relation_p
         tail = tail + torch.sum(tail * tail_p, -1, keepdim=True) * relation_p
 
-        head = l2norm_op(head)
-        relation = l2norm_op(relation)
-        tail = l2norm_op(tail)
+        head = self.l2norm_op(head)
+        relation = self.l2norm_op(relation)
+        tail = self.l2norm_op(tail)
         
         if mode == 'head-batch':
             score = head + (relation - tail)
