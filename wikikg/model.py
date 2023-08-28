@@ -89,8 +89,6 @@ class KGEModel(nn.Module):
             )
 
         if model_name in ['TransD']:
-            self.ent_transfer = nn.Embedding(self.ent_tot, self.dim_e, embedding_table=XavierUniform())
-            self.rel_transfer = nn.Embedding(self.rel_tot, self.dim_r, embedding_table=XavierUniform())
             self.entity_p_embedding = nn.Parameter(torch.zeros(nentity, self.entity_dim))
             nn.init.uniform_(
                 tensor=self.entity_p_embedding,
