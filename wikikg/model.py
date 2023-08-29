@@ -22,7 +22,7 @@ from ogb.linkproppred import Evaluator
 def tensor_constant(value, shape):
     """Create a tensor constant of the specified shape"""
     constant = np.ones(shape, np.float32) * value
-    return torch.Tensor(constant, torch.float32)
+    return torch.Tensor(constant)
 
 class KGEModel(nn.Module):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma, evaluator,
@@ -266,6 +266,7 @@ class KGEModel(nn.Module):
     @staticmethod
     def l2norm_op(x):
         ones_for_sum = tensor_constant(1, (x.shape[2], x.shape[2]))
+        ones_for_sum.to('cuda')
         eps = tensor_constant(1e-12, x.shape)
         return x * torch.rsqrt(torch.matmul(torch.square(x), ones_for_sum) + eps)
     
